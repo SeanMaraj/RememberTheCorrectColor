@@ -46,13 +46,23 @@
 	</Reference>
   </ItemGroup>
   <ItemGroup>
+     <Compile Include="Assets\JSON Tests\CSharp\Test_CSharp.cs" />
+     <Compile Include="Assets\Scripts\Helpers\GameColor.cs" />
      <Compile Include="Assets\Scripts\Helpers\HUDFPS.cs" />
      <Compile Include="Assets\Scripts\Helpers\SlowDown.cs" />
      <Compile Include="Assets\Scripts\Helpers\TickingTimer.cs" />
      <Compile Include="Assets\Scripts\StartGame.cs" />
+     <None Include="Assets\JSON Tests\TroubleShoot.txt" />
  <Reference Include="UnityEngine.UI">
  <HintPath>C:/Program Files (x86)/Unity/Editor/Data/UnityExtensions/Unity/GUISystem/4.6.1/UnityEngine.UI.dll</HintPath>
  </Reference>
+ <Reference Include="ICSharpCode.SharpZipLib">
+ <HintPath>C:/Dev/RememberTheCorrectColor/Assets/plugins/ICSharpCode.SharpZipLib.dll</HintPath>
+ </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="Assembly-CSharp-firstpass.csproj">
+      <Project>{61F7CB98-FE72-A7A9-3456-2290ACBB7183}</Project>      <Name>Assembly-CSharp-firstpass</Name>    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

@@ -45,7 +45,6 @@ public class TickingTimer
 	{
 		if (_timerActive && _state == State.Ticking)
 		{
-			Debug.Log(_tickDuration);
 			_repeatsCounter++;
 			_tickAction();
 
