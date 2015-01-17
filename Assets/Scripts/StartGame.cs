@@ -144,6 +144,7 @@ public class StartGame : MonoBehaviour
 
 		_gameplayLayout.GetComponent<CanvasGroup>().alpha = 1;
 		transform.Find("Score").GetComponent<Text>().text = "Score: 0";
+		transform.Find("Score").GetComponent<Text>().color = Color.black;
 		_timer = new TickingTimer(_duration, 0, timerTick, this);
 		chooseColor();
 	}
@@ -157,6 +158,7 @@ public class StartGame : MonoBehaviour
 		enterState(State.Gameover, endGameover);
 		_gameoverLayout.SetActive(true);
 		_gameplayLayout.GetComponent<CanvasGroup>().alpha = 0.2f;
+		transform.Find("Score").GetComponent<Text>().color = Color.white;
 
 		int currentHighScore = PlayerPrefs.GetInt("highScore");
 		if (_score > currentHighScore)
@@ -188,7 +190,7 @@ public class StartGame : MonoBehaviour
 		_colors.Add("Blue",Color.blue);
 		_colors.Add("Yellow",Color.yellow);
 		_colors.Add("Magenta",Color.magenta);
-		_colors.Add("Gray",Color.gray);
+		_colors.Add("Gray",Color.cyan);
 	}
 	
 	void chooseColor()
