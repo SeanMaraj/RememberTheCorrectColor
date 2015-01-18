@@ -7,17 +7,21 @@ using SimpleJSON;
 
 public class StartGame : MonoBehaviour 
 {
-	enum State { Initialized = 1, Menu, Gameplay, Gameover, Disposed };
+	enum State { Initialized, Menu, Gameplay, Gameover, Disposed };
+	enum Colors { Green = 1, Red = 2, Blue = 3, Yellow = 4, Gray = 5, Cyan = 6, Magenta = 7};
 	State _state;
 	Action _stateEnder;
 
-	//JSONArray _colors = new SimpleJSON.JSONArray();
-	Dictionary<string, GameColor> _colors = new Dictionary<string, GameColor>();
-	Color _currentColor;
-	Color _prevColor;
+	JSONArray _c = new SimpleJSON.JSONArray();
+
+
+	Dictionary<string, GameColor> _primaryColors = new Dictionary<string, GameColor>();
+	Dictionary<string, GameColor> _extraColors = new Dictionary<string, GameColor>();
+	GameColor _currentColor;
+	GameColor _prevColor = new GameColor(Color.gray, 10);
 	TickingTimer _timer;
 
-
+	int _initialDuration = 1;
 
 	GameObject _menuLayout;
 	GameObject _gameplayLayout;
@@ -93,7 +97,7 @@ public class StartGame : MonoBehaviour
 
 	public void tapColor(GameObject colorButton)
 	{
-		if (_colors[colorButton.tag].Equals(_prevColor))
+		if (_primaryColors[colorButton.tag].color.Equals(_prevColor.color))
 		{
 			if (!_tapped)
 			{
@@ -148,7 +152,7 @@ public class StartGame : MonoBehaviour
 		enterState(State.Gameplay, endGameplay);
 		_score = 0;
 		_count = 0;
-		_duration = 1;
+		_duration = _initialDuration;
 		_firstColor = true;
 
 		_gameplayLayout.GetComponent<CanvasGroup>().alpha = 1;
@@ -196,13 +200,12 @@ public class StartGame : MonoBehaviour
 	void setColors()
 	{
 
-		_colors.Add("Green",new GameColor(Color.green, 10));
-		_colors.Add("Red",new GameColor(Color.red, 10));
-		_colors.Add("Blue",new GameColor(Color.blue, 10));
-		_colors.Add("Yellow",new GameColor(Color.yellow, 10));
-		_colors.Add("Gray", new GameColor(Color.gray, 10));
+		_primaryColors.Add("Green",new GameColor(Color.green, 80));
+		_primaryColors.Add("Red",new GameColor(Color.red, 80));
+		_primaryColors.Add("Blue",new GameColor(Color.blue, 80));
+		_primaryColors.Add("Yellow",new GameColor(Color.yellow, 80));
 
-		//_colors.Add("C
+		_extraColors.Add("Gray", new GameColor(Color.gray, 10));
 	}
 	void setDuration()
 	{
@@ -217,16 +220,17 @@ public class StartGame : MonoBehaviour
 			break;
 		case 10:
 			_duration = 0.9f;
+			if (!_extraColors.ContainsKey("Cyan")) {  _extraColors.Add("Cyan",new GameColor(Color.cyan, 10)); }
 			break;
 		case 15:
 			_duration = 0.8f;
 			break;
 		case 20:
 			_duration = 0.7f;
-			_colors.Add("Magenta",new GameColor(Color.magenta, 10));
 			break;
 		case 30:
 			_duration = 0.6f;
+			_extraColors.Add("Magenta",new GameColor(Color.magenta, 10));
 			break;
 		case 35:
 			_duration = 0.5f;
@@ -248,14 +252,28 @@ public class StartGame : MonoBehaviour
 		_timer.setDuration(_duration);
 	}
 	
-	void chooseColor()
+	void chooseColor(bool retry = false)
 	{
 		System.Random rnd  = new System.Random();
-		int rnum = rnd.Next(1,_colors.Count+1);
-		_prevColor = _currentColor;
+		int die = rnd.Next (1, 101);
+
+		if (!retry)
+		{
+			_prevColor = _currentColor;
+		}
 		_prevPrimaryColor = _primaryColor;
 
-		switch(rnum)
+		if (die <= 90) 
+		{
+			_currentColor = _primaryColors [((Colors)rnd.Next (1, 5)).ToString ()];
+		} else {
+			Debug.Log(rnd.Next (4, 4 + _extraColors.Count));
+			_currentColor = _extraColors [((Colors)rnd.Next (5, 5 + _extraColors.Count)).ToString ()];
+		}
+
+
+
+		/*switch(rnum)
 		{
 			case 1:
 				_currentColor = _colors["Green"].color;
@@ -281,18 +299,18 @@ public class StartGame : MonoBehaviour
 				_currentColor = _colors["Gray"].color;
 				_primaryColor = false;
 				break;
-		}
+		}*/
 
-		if (_currentColor == _prevColor)
+		if (!_firstColor && _currentColor.color == _prevColor.color)
 		{
-			chooseColor(); 
+			chooseColor(true); 
 		}else
 		{
 			//if (_duration > 0.2) { _duration -= 0.01f; }
 			//_timer.setDuration(_duration);
 			_tapped = false;
 
-			transform.Find ("Game").Find("swapper").Find("background").gameObject.GetComponent<Image>().color = _currentColor;
+			transform.Find ("Game").Find("swapper").Find("background").gameObject.GetComponent<Image>().color = _currentColor.color;
 		}
 	}
 
