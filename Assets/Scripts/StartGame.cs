@@ -14,14 +14,11 @@ public class StartGame : MonoBehaviour
 
 	JSONArray _c = new SimpleJSON.JSONArray();
 
-
-	Dictionary<string, GameColor> _primaryColors = new Dictionary<string, GameColor>();
+	Dictionary<string, GameColor> _mainColors = new Dictionary<string, GameColor>();
 	Dictionary<string, GameColor> _extraColors = new Dictionary<string, GameColor>();
 	GameColor _currentColor;
-	GameColor _prevColor = new GameColor(Color.gray, 10);
+	GameColor _prevColor;
 	TickingTimer _timer;
-
-	int _initialDuration = 1;
 
 	GameObject _menuLayout;
 	GameObject _gameplayLayout;
@@ -31,10 +28,11 @@ public class StartGame : MonoBehaviour
 	float _duration = 1;
 	int _score = 0;
 	int _count = 0;
-	bool _tapped;
+	bool _tapped; //flag for when the player taps the current color
 	bool _firstColor;
 	bool _primaryColor;
-	bool _prevPrimaryColor;
+	bool _prevColIsPrimary;
+	int _initialDuration = 1; //sets difficulty
 	
 	void Start ()
 	{
@@ -57,15 +55,17 @@ public class StartGame : MonoBehaviour
 	*/
 	void timerTick()
 	{
-
 		// resets alpha of checkmarks
 		if (_prevTappedColor != null)
 		{
+			//Debug.Log(_prevColor);
+			//_gameplayLayout.transform.Find("button" + _prevColor.name).Find("check").gameObject.GetComponent<Image>().CrossFadeAlpha(1, 0, false);
+			//_gameplayLayout.transform.Find("button" + _prevColor.name).Find("check").gameObject.SetActive(false);
 			_prevTappedColor.transform.Find("check").gameObject.GetComponent<Image>().CrossFadeAlpha(1, 0, false);
 			_prevTappedColor.transform.Find("check").gameObject.SetActive(false);
 		}
 
-		if (_firstColor || _tapped || !_prevPrimaryColor)
+		if (_firstColor || _tapped || !(_prevColor.isMain))
 		{
 			setDuration();
 			chooseColor();
@@ -97,9 +97,9 @@ public class StartGame : MonoBehaviour
 
 	public void tapColor(GameObject colorButton)
 	{
-		if (_primaryColors[colorButton.tag].color.Equals(_prevColor.color))
+		if (_mainColors[colorButton.tag].value.Equals(_prevColor.value)) // If tapped color is correct
 		{
-			if (!_tapped)
+			if (!_tapped) // Ensures only first tap of color counts
 			{
 				_score++;
 				transform.Find("Score").GetComponent<Text>().text = "Score: " + _score;
@@ -159,7 +159,7 @@ public class StartGame : MonoBehaviour
 		transform.Find("Score").GetComponent<Text>().text = "Score: 0";
 		transform.Find("Score").GetComponent<Text>().color = Color.black;
 		_timer = new TickingTimer(_duration, 0, timerTick, this);
-		chooseColor();
+		//chooseColor();
 		setDuration();
 	}
 	void endGameplay()
@@ -200,16 +200,20 @@ public class StartGame : MonoBehaviour
 	void setColors()
 	{
 
-		_primaryColors.Add("Green",new GameColor(Color.green, 80));
-		_primaryColors.Add("Red",new GameColor(Color.red, 80));
-		_primaryColors.Add("Blue",new GameColor(Color.blue, 80));
-		_primaryColors.Add("Yellow",new GameColor(Color.yellow, 80));
+		_mainColors.Add("Green",new GameColor(Color.green, "Green", 0, true));
+		_mainColors.Add("Red",new GameColor(Color.red, "Red", 0, true));
+		_mainColors.Add("Blue",new GameColor(Color.blue, "Blue", 0, true));
+		_mainColors.Add("Yellow",new GameColor(Color.yellow, "Yellow", 0, true));
 
-		_extraColors.Add("Gray", new GameColor(Color.gray, 10));
+		_extraColors.Add("Gray", new GameColor(Color.gray, "Gray", 0, false));
 	}
+
+	/// <summary>
+	/// Sets the duration of how long a color stays on the screen. Duration decreases as the player's score increases.
+	/// </summary>
 	void setDuration()
 	{
-		Debug.Log (_count);
+		//Debug.Log (_count);
 		switch(_score)
 		{
 		case 0:
@@ -220,7 +224,7 @@ public class StartGame : MonoBehaviour
 			break;
 		case 10:
 			_duration = 0.9f;
-			if (!_extraColors.ContainsKey("Cyan")) {  _extraColors.Add("Cyan",new GameColor(Color.cyan, 10)); }
+			//if (!_extraColors.ContainsKey("Cyan")) {  _extraColors.Add("Cyan",new GameColor(Color.cyan)); }
 			break;
 		case 15:
 			_duration = 0.8f;
@@ -230,7 +234,7 @@ public class StartGame : MonoBehaviour
 			break;
 		case 30:
 			_duration = 0.6f;
-			_extraColors.Add("Magenta",new GameColor(Color.magenta, 10));
+			//if (!_extraColors.ContainsKey("Magenta")) {_extraColors.Add("Magenta",new GameColor(Color.magenta)); }
 			break;
 		case 35:
 			_duration = 0.5f;
@@ -251,66 +255,41 @@ public class StartGame : MonoBehaviour
 
 		_timer.setDuration(_duration);
 	}
-	
-	void chooseColor(bool retry = false)
+
+	/// <summary>
+	/// Chooses the next color. 90% chance of main color.
+	/// </summary>
+	void chooseColor(bool rechoose = false)
 	{
 		System.Random rnd  = new System.Random();
 		int die = rnd.Next (1, 101);
 
-		if (!retry)
+		if (!rechoose && !_firstColor)
 		{
 			_prevColor = _currentColor;
+
+					
 		}
-		_prevPrimaryColor = _primaryColor;
 
 		if (die <= 90) 
 		{
-			_currentColor = _primaryColors [((Colors)rnd.Next (1, 5)).ToString ()];
-		} else {
-			Debug.Log(rnd.Next (4, 4 + _extraColors.Count));
+			_currentColor = _mainColors [((Colors)rnd.Next (1, 5)).ToString ()];
+			_prevColIsPrimary = true;
+		}else 
+		{
 			_currentColor = _extraColors [((Colors)rnd.Next (5, 5 + _extraColors.Count)).ToString ()];
+			_prevColIsPrimary = false;
 		}
 
-
-
-		/*switch(rnum)
-		{
-			case 1:
-				_currentColor = _colors["Green"].color;
-				_primaryColor = true;
-				break;
-			case 2:
-				_currentColor = _colors["Red"].color;
-				_primaryColor = true;
-				break;
-			case 3:
-				_currentColor = _colors["Blue"].color;
-				_primaryColor = true;
-				break;
-			case 4:
-				_currentColor = _colors["Yellow"].color;
-				_primaryColor = true;
-				break;
-			case 5:
-				_currentColor = _colors["Gray"].color;
-				_primaryColor = false;
-				break;
-			case 6:
-				_currentColor = _colors["Gray"].color;
-				_primaryColor = false;
-				break;
-		}*/
-
-		if (!_firstColor && _currentColor.color == _prevColor.color)
+		// Never choose the previous color.
+		if (!_firstColor && (_currentColor.value == _prevColor.value))
 		{
 			chooseColor(true); 
 		}else
 		{
-			//if (_duration > 0.2) { _duration -= 0.01f; }
-			//_timer.setDuration(_duration);
-			_tapped = false;
 
-			transform.Find ("Game").Find("swapper").Find("background").gameObject.GetComponent<Image>().color = _currentColor.color;
+			_tapped = false; //reset flag
+			transform.Find ("Game").Find("swapper").Find("background").gameObject.GetComponent<Image>().color = _currentColor.value;
 		}
 	}
 
