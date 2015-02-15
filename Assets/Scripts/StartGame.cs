@@ -9,21 +9,19 @@ public class StartGame : MonoBehaviour
 {
 	enum State { Initialized, Menu, Gameplay, Gameover, Disposed };
 	enum Colors { Green = 1, Red = 2, Blue = 3, Yellow = 4, Gray = 5, Cyan = 6, Magenta = 7};
-	State _state;
+	State _currentState;
 	Action _stateEnder;
-
-	JSONArray _c = new SimpleJSON.JSONArray();
 
 	Dictionary<string, GameColor> _mainColors = new Dictionary<string, GameColor>();
 	Dictionary<string, GameColor> _extraColors = new Dictionary<string, GameColor>();
-	GameColor _currentColor;
-	GameColor _prevColor;
+	GameColor _currentColor = new GameColor(); 
+	GameColor _prevColor = new GameColor();
 	TickingTimer _timer;
 
 	GameObject _menuLayout;
 	GameObject _gameplayLayout;
 	GameObject _gameoverLayout;
-	GameObject _prevTappedColor;
+	GameObject _prevTappedColor; // The previously tapped color by the player
 
 	float _duration = 1;
 	int _score = 0;
@@ -31,7 +29,6 @@ public class StartGame : MonoBehaviour
 	bool _tapped; //flag for when the player taps the current color
 	bool _firstColor;
 	bool _primaryColor;
-	bool _prevColIsPrimary;
 	int _initialDuration = 1; //sets difficulty
 	
 	void Start ()
@@ -46,7 +43,7 @@ public class StartGame : MonoBehaviour
 			_stateEnder();
 		}
 
-		_state = state;
+		_currentState = state;
 		_stateEnder = stateEnder;
 	}
 
@@ -58,9 +55,6 @@ public class StartGame : MonoBehaviour
 		// resets alpha of checkmarks
 		if (_prevTappedColor != null)
 		{
-			//Debug.Log(_prevColor);
-			//_gameplayLayout.transform.Find("button" + _prevColor.name).Find("check").gameObject.GetComponent<Image>().CrossFadeAlpha(1, 0, false);
-			//_gameplayLayout.transform.Find("button" + _prevColor.name).Find("check").gameObject.SetActive(false);
 			_prevTappedColor.transform.Find("check").gameObject.GetComponent<Image>().CrossFadeAlpha(1, 0, false);
 			_prevTappedColor.transform.Find("check").gameObject.SetActive(false);
 		}
@@ -123,9 +117,7 @@ public class StartGame : MonoBehaviour
 		_menuLayout = transform.Find("Menu").gameObject;
 		_gameplayLayout = transform.Find("Game").gameObject;
 		_gameoverLayout = transform.Find("Gameover").gameObject;
-
 		_gameoverLayout.SetActive(false);
-
 		setColors();
 		toMenu();
 	}
@@ -159,7 +151,7 @@ public class StartGame : MonoBehaviour
 		transform.Find("Score").GetComponent<Text>().text = "Score: 0";
 		transform.Find("Score").GetComponent<Text>().color = Color.black;
 		_timer = new TickingTimer(_duration, 0, timerTick, this);
-		//chooseColor();
+		chooseColor();
 		setDuration();
 	}
 	void endGameplay()
@@ -224,7 +216,8 @@ public class StartGame : MonoBehaviour
 			break;
 		case 10:
 			_duration = 0.9f;
-			//if (!_extraColors.ContainsKey("Cyan")) {  _extraColors.Add("Cyan",new GameColor(Color.cyan)); }
+			Debug.Log ("ADDING CYAN"); //TODO remove
+			if (!_extraColors.ContainsKey("Cyan")) { _extraColors.Add("Cyan",new GameColor(Color.cyan, "Cyan", 0, false)); }
 			break;
 		case 15:
 			_duration = 0.8f;
@@ -234,7 +227,8 @@ public class StartGame : MonoBehaviour
 			break;
 		case 30:
 			_duration = 0.6f;
-			//if (!_extraColors.ContainsKey("Magenta")) {_extraColors.Add("Magenta",new GameColor(Color.magenta)); }
+			Debug.Log ("ADDING MAGENTA"); //TODO remove
+			if (!_extraColors.ContainsKey("Magenta")) {_extraColors.Add("Magenta",new GameColor(Color.magenta, "Magenta", 0, false)); }
 			break;
 		case 35:
 			_duration = 0.5f;
@@ -262,23 +256,16 @@ public class StartGame : MonoBehaviour
 	void chooseColor(bool rechoose = false)
 	{
 		System.Random rnd  = new System.Random();
-		int die = rnd.Next (1, 101);
+		int die = rnd.Next(100);
+ 
+		_prevColor = _currentColor; // Store the previous color to check if player is correct							
 
-		if (!rechoose && !_firstColor)
-		{
-			_prevColor = _currentColor;
-
-					
-		}
-
-		if (die <= 90) 
+		if (die < 90) 
 		{
 			_currentColor = _mainColors [((Colors)rnd.Next (1, 5)).ToString ()];
-			_prevColIsPrimary = true;
 		}else 
 		{
 			_currentColor = _extraColors [((Colors)rnd.Next (5, 5 + _extraColors.Count)).ToString ()];
-			_prevColIsPrimary = false;
 		}
 
 		// Never choose the previous color.
@@ -287,8 +274,7 @@ public class StartGame : MonoBehaviour
 			chooseColor(true); 
 		}else
 		{
-
-			_tapped = false; //reset flag
+			_tapped = false; //reset flag for new color to be tapped
 			transform.Find ("Game").Find("swapper").Find("background").gameObject.GetComponent<Image>().color = _currentColor.value;
 		}
 	}

@@ -9,7 +9,6 @@ public class GameColor : MonoBehaviour {
 	public string name { get; set; }
 	public bool isMain { get; set; }
 	public bool isFirst { get; set; }
-	public bool isTapped { get; set; }
 
 	/*
 	public GameColor (Color value)
@@ -24,13 +23,14 @@ public class GameColor : MonoBehaviour {
 	}
 	*/
 
-	public GameColor (Color value, string name, int weight, bool isMain, bool isFirst = false, bool isTapped = false)
+	public GameColor(){}
+
+	public GameColor (Color value, string name, int weight, bool isMain, bool isFirst = false)
 	{
 		this.value = value;
 		this.name = name;
 		this.weight = weight;
 		this.isMain = isMain;
 		this.isFirst = isFirst;
-		this.isTapped = isTapped;
 	}
 }
