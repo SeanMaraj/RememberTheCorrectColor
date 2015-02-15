@@ -8,7 +8,9 @@ using SimpleJSON;
 public class StartGame : MonoBehaviour 
 {
 	enum State { Initialized, Menu, Gameplay, Gameover, Disposed };
+    enum Difficulty { Easy = 0, Normal = 10, Pro = 20};
 	State _currentState;
+    Difficulty _difficulty;
 	Action _stateEnder;
 
 	List<GameColor> _mainColors = new List<GameColor>(); // Stores the colors of the buttons: green, red, blue, yellow
@@ -70,6 +72,7 @@ public class StartGame : MonoBehaviour
 	public void tapPlay()
 	{
 		toGameplay();
+        increaseDifficulty();
 	}
 
 	public void tapMenu()
@@ -124,9 +127,9 @@ public class StartGame : MonoBehaviour
 	{
 		enterState(State.Menu, endMenu);
 		_menuLayout.SetActive(true);
-		_gameplayLayout.GetComponent<CanvasGroup>().alpha = 0.2f;
+		_gameplayLayout.GetComponent<CanvasGroup>().alpha = 0.3f;
 
-		transform.Find("Score").GetComponent<Text>().text = "High Score: " + PlayerPrefs.GetInt("highScore");
+		transform.Find("Score").GetComponent<Text>().text = "High Score: " + PlayerPrefs.GetInt("highScore" + _difficulty.ToString());
 	}
 	void endMenu()
 	{
@@ -155,13 +158,13 @@ public class StartGame : MonoBehaviour
 	{
 		enterState(State.Gameover, endGameover);
 		_gameoverLayout.SetActive(true);
-		_gameplayLayout.GetComponent<CanvasGroup>().alpha = 0.2f;
+		_gameplayLayout.GetComponent<CanvasGroup>().alpha = 0.3f;
 		transform.Find("Score").GetComponent<Text>().color = Color.white;
 
-		int currentHighScore = PlayerPrefs.GetInt("highScore");
+		int currentHighScore = PlayerPrefs.GetInt("highScore" + _difficulty.ToString());
 		if (_score > currentHighScore)
 		{
-			PlayerPrefs.SetInt("highScore", _score);
+			PlayerPrefs.SetInt("highScore" + _difficulty.ToString(), _score);
 		}
 	}
 	void endGameover()
@@ -181,9 +184,11 @@ public class StartGame : MonoBehaviour
 	/* 
 	 * HELPERS
 	*/
-    void setInitialDifficulty(int difficultyOffset)
+    public void setInitialDifficulty(int difficultyOffset)
     {
         _difficultyOffset = difficultyOffset;
+        _difficulty = (Difficulty)difficultyOffset;
+        toMenu();
     }
 
 	void setColors()
