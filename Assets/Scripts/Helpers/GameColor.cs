@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 using System.Collections;
 
-public class GameColor : MonoBehaviour {
+public class GameColor{
 
 	//TODO set these to private?
 	public Color value { get; set; }
@@ -9,19 +9,6 @@ public class GameColor : MonoBehaviour {
 	public string name { get; set; }
 	public bool isMain { get; set; }
 	public bool isFirst { get; set; }
-
-	/*
-	public GameColor (Color value)
-	{
-		this.value = value;
-	}
-
-	public GameColor (Color value, int weight)
-	{
-		this.value = value;
-		this.weight = weight;
-	}
-	*/
 
 	public GameColor(){}
 
