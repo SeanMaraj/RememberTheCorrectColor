@@ -8,28 +8,26 @@ using SimpleJSON;
 public class StartGame : MonoBehaviour 
 {
 	enum State { Initialized, Menu, Gameplay, Gameover, Disposed };
-    enum Difficulty { Easy = 0, Normal = 10, Pro = 20};
+    enum Difficulty { Easy = 12, Normal = 10, Pro = 7 }; // Divide value by 10 to get initial duration
 	State _currentState;
-    Difficulty _difficulty;
+    Difficulty _difficulty = Difficulty.Normal;
 	Action _stateEnder;
 
 	List<GameColor> _mainColors = new List<GameColor>(); // Stores the colors of the buttons: green, red, blue, yellow
 	List<GameColor> _extraColors = new List<GameColor>(); // Stores the extra colours that 
-	GameColor _currentColor = new GameColor(); 
+	GameColor _currentColor = new GameColor();
 	GameColor _prevColor = new GameColor();
-	TickingTimer _timer;
-
+	
 	GameObject _menuLayout;
 	GameObject _gameplayLayout;
 	GameObject _gameoverLayout;
-	GameObject _prevTappedColor; // The previously tapped color by the player
+	GameObject _prevTappedColor;
 
-    int _difficultyOffset = 0;
+    TickingTimer _timer;
 	float _duration = 1;
 	int _score = 0;
 	bool _tapped; // Flag for when the player taps the current color
 	bool _firstColor; // Flag to check if the current color is the first color
-	int _initialDuration = 1; //sets difficulty
 	
 	void Start ()
 	{
@@ -47,6 +45,70 @@ public class StartGame : MonoBehaviour
 		_stateEnder = stateEnder;
 	}
 
+
+    /* 
+	 * STATE METHODS
+	*/
+    void toInitialized()
+    {
+        enterState(State.Initialized, null);
+        _menuLayout = transform.Find("Menu").gameObject;
+        _gameplayLayout = transform.Find("Game").gameObject;
+        _gameoverLayout = transform.Find("Gameover").gameObject;
+        _gameoverLayout.SetActive(false);
+        addMainColors();
+        toMenu();
+    }
+
+    void toMenu()
+    {
+        enterState(State.Menu, endMenu);
+        _menuLayout.SetActive(true);
+        _gameplayLayout.GetComponent<CanvasGroup>().alpha = 0.3f;
+        transform.Find("Score").GetComponent<Text>().text = "High Score: " + PlayerPrefs.GetInt("highScore" + _difficulty.ToString());
+    }
+    void endMenu()
+    {
+        _menuLayout.SetActive(false);
+    }
+
+    void toGameplay()
+    {
+        enterState(State.Gameplay, endGameplay);
+        _score = 0;
+        _firstColor = true;
+        _gameplayLayout.GetComponent<CanvasGroup>().alpha = 1;
+        Text scoreText = transform.Find("Score").GetComponent<Text>();
+        scoreText.text = "Score: 0";
+        scoreText.color = Color.black;
+        _timer = new TickingTimer(_duration, 0, timerTick, this);
+        chooseColor();
+        setDifficulty();
+    }
+    void endGameplay()
+    {
+        _timer.destroy();
+    }
+
+    void toGameOver()
+    {
+        enterState(State.Gameover, endGameover);
+        _gameoverLayout.SetActive(true);
+        _gameplayLayout.GetComponent<CanvasGroup>().alpha = 0.3f;
+        transform.Find("Score").GetComponent<Text>().color = Color.white;
+
+        int currentHighScore = PlayerPrefs.GetInt("highScore" + _difficulty.ToString());
+        if (_score > currentHighScore)
+        {
+            PlayerPrefs.SetInt("highScore" + _difficulty.ToString(), _score);
+        }
+    }
+    void endGameover()
+    {
+        _gameoverLayout.SetActive(false);
+    }
+
+
 	/* 
 	 * EVENTS
 	*/
@@ -59,31 +121,32 @@ public class StartGame : MonoBehaviour
 			_prevTappedColor.transform.Find("check").gameObject.SetActive(false);
 		}
 
-		if (_firstColor || _tapped || !(_prevColor.isMain))
+        if (_tapped || _prevColor == null || !(_prevColor.isMain))
 		{
 			chooseColor();
-			if (_firstColor) { _firstColor = false; }
 		}else
 		{
 			toGameOver();
 		}
 	}
 
-	public void tapPlay()
-	{
-		toGameplay();
-        increaseDifficulty();
-	}
+    public void tapDifficultyButton(GameObject difficulty)
+    {
+        // Reset color of previously selected difficulty button
+        Button oldDifficultyButton = _menuLayout.transform.Find(_difficulty.ToString() + "Button").GetComponent<Button>();
+        var temp1 = oldDifficultyButton.colors;
+        temp1.normalColor = new Color(254f / 255f, 171f / 255f, 67f / 255);
+        oldDifficultyButton.colors = temp1;
 
-	public void tapMenu()
-	{
-		toMenu();
-	}
+        // Change color of selected button
+        _difficulty = (Difficulty)Enum.Parse(typeof(Difficulty), difficulty.tag);
+        Button difficultyButton = difficulty.GetComponent<Button>();
+        var temp2 = difficultyButton.colors;
+        temp2.normalColor = new Color(195f / 255f, 94f / 255f, 0f);
+        difficultyButton.colors = temp2;
 
-	public void tapRestart()
-	{
-		toGameplay();
-	}
+        toMenu(); // Update high score depending on difficulty
+    }
 
 	public void tapColor(GameObject colorButton)
 	{
@@ -96,7 +159,7 @@ public class StartGame : MonoBehaviour
 				colorButton.transform.Find("check").gameObject.SetActive(true);
 				colorButton.transform.Find("check").gameObject.GetComponent<Image>().CrossFadeAlpha(0, 0.25f, false);
 				_prevTappedColor = colorButton;
-				increaseDifficulty();
+				setDifficulty();
 			}
             _tapped = true;
 		}else
@@ -105,151 +168,81 @@ public class StartGame : MonoBehaviour
 		}
 	}
 
-	/* 
-	 * STATE METHODS
-	*/
-	void toInitialized()
-	{
-		enterState(State.Initialized, endInitialized);
-		_menuLayout = transform.Find("Menu").gameObject;
-		_gameplayLayout = transform.Find("Game").gameObject;
-		_gameoverLayout = transform.Find("Gameover").gameObject;
-		_gameoverLayout.SetActive(false);
-		setColors();
-		toMenu();
-	}
-	void endInitialized()
-	{
+    public void tapPlay()
+    {
+        toGameplay();
+    }
 
-	}
+    public void tapMenu()
+    {
+        toMenu();
+    }
 
-	void toMenu()
-	{
-		enterState(State.Menu, endMenu);
-		_menuLayout.SetActive(true);
-		_gameplayLayout.GetComponent<CanvasGroup>().alpha = 0.3f;
+    public void tapRestart()
+    {
+        _currentColor = null;
+        _prevColor = null;
+        _prevTappedColor = null;
+        _extraColors.Clear();
+        toGameplay();
+    }
 
-		transform.Find("Score").GetComponent<Text>().text = "High Score: " + PlayerPrefs.GetInt("highScore" + _difficulty.ToString());
-	}
-	void endMenu()
-	{
-		_menuLayout.SetActive(false);
-	}
-
-	void toGameplay()
-	{
-		enterState(State.Gameplay, endGameplay);
-		_score = 0;
-		_duration = _initialDuration;
-		_firstColor = true;
-
-		_gameplayLayout.GetComponent<CanvasGroup>().alpha = 1;
-		transform.Find("Score").GetComponent<Text>().text = "Score: 0";
-		transform.Find("Score").GetComponent<Text>().color = Color.black;
-		_timer = new TickingTimer(_duration, 0, timerTick, this);
-		chooseColor();
-	}
-	void endGameplay()
-	{
-		_timer.destroy();
-	}
-
-	void toGameOver()
-	{
-		enterState(State.Gameover, endGameover);
-		_gameoverLayout.SetActive(true);
-		_gameplayLayout.GetComponent<CanvasGroup>().alpha = 0.3f;
-		transform.Find("Score").GetComponent<Text>().color = Color.white;
-
-		int currentHighScore = PlayerPrefs.GetInt("highScore" + _difficulty.ToString());
-		if (_score > currentHighScore)
-		{
-			PlayerPrefs.SetInt("highScore" + _difficulty.ToString(), _score);
-		}
-	}
-	void endGameover()
-	{
-		_gameoverLayout.SetActive(false);
-	}
-
-	void toDisposed()
-	{
-	
-	}
-	void endDisposed()
-	{
-
-	}
 
 	/* 
 	 * HELPERS
 	*/
-    public void setInitialDifficulty(int difficultyOffset)
-    {
-        _difficultyOffset = difficultyOffset;
-        _difficulty = (Difficulty)difficultyOffset;
-        toMenu();
-    }
-
-	void setColors()
+    
+	void addMainColors()
 	{
 		_mainColors.Add(new GameColor(Color.green, "Green", 0, true));
 		_mainColors.Add(new GameColor(Color.red, "Red", 0, true));
 		_mainColors.Add(new GameColor(Color.blue, "Blue", 0, true));
 		_mainColors.Add(new GameColor(Color.yellow, "Yellow", 0, true));
-		_extraColors.Add(new GameColor(Color.gray, "Gray", 0, false));
 	}
 
-	/// <summary>
-	/// Sets the duration of how long a color stays on the screen. Duration decreases as the player's score increases.
-	/// </summary>
-	void increaseDifficulty()
+	// Sets the duration of how long a color stays on the screen. Duration decreases as the player's score increases.
+	void setDifficulty()
 	{
-		switch(_score + _difficultyOffset)
+		switch(_score)
 		{
-		case 0:
-			_duration = 1;
-			break;
-		case 5:
-			_duration = 1f;
+		case 0: 
+			_duration = ((float)_difficulty)/10f; // Normal = 1
+            Debug.Log("Duration: " + (_duration));
 			break;
 		case 10:
-			_duration = 0.9f;
+			_duration -= 0.1f; // Normal = 0.9
+            _extraColors.Add(new GameColor(Color.gray, "Gray", 0, false));
+            Debug.Log("Duration: " + _duration);
 			break;
 		case 15:
-			_duration = 0.8f;
+            _duration -= 0.05f; // Normal = 0.85
+            Debug.Log("Duration: " + _duration);
 			break;
 		case 20:
-			_duration = 0.7f;
+			_duration -= 0.05f; // Normal = 0.8
+            Debug.Log("Duration: " + _duration);
             _extraColors.Add(new GameColor(Color.cyan, "Cyan", 0, false));
 			break;
 		case 30:
-			_duration = 0.6f;
-			break;
-		case 35:
-			_duration = 0.5f;
+			_duration -= 0.1f; // Normal = 0.7
+            Debug.Log("Duration: " + _duration);
 			break;
 		case 40:
-			_duration = 0.45f;
-			_extraColors.Add(new GameColor(Color.magenta, "Magenta", 0, false));
-			break;
-		case 45:
-			_duration = 0.4f;
+			_duration -= 0.05f;
 			break;
 		case 50:
-			_duration = 0.3f;
+			_duration -= 0.1f;
+            _extraColors.Add(new GameColor(Color.magenta, "Magenta", 0, false));
 			break;
-		case 80:
-			_duration = 0.2f;
+		case 100:
+			_duration -= 0.1f;
 			break;
 		}
 
 		_timer.setDuration(_duration);
 	}
 
-	/// <summary>
-	/// Chooses the next color. 90% chance of main color.
-	/// </summary>
+	// Chooses the next color to display
 	void chooseColor(bool rechoose = false)
 	{
         _prevColor = _currentColor; // Store the previous color to check if player is correct	
@@ -257,9 +250,9 @@ public class StartGame : MonoBehaviour
         // % chance of choosing a main color
 		System.Random rnd  = new System.Random();
 		int die = rnd.Next(100);						
-		if (die < 90)
+		if (die < 90 || _extraColors.Count == 0)
 		{
-			_currentColor = _mainColors [rnd.Next (1, _mainColors.Count)];
+			_currentColor = _mainColors [rnd.Next (0, _mainColors.Count)];
 		}else 
 		{
 			_currentColor = _extraColors [rnd.Next (0, _extraColors.Count)];
@@ -270,7 +263,8 @@ public class StartGame : MonoBehaviour
 			chooseColor(true); 
 		}else
 		{
-			_tapped = false; //reset flag for new color to be tapped
+            if (_firstColor) { _firstColor = false; }
+			_tapped = false; // Reset flag for new color to be tapped
 			transform.Find ("Game").Find("swapper").Find("background").gameObject.GetComponent<Image>().color = _currentColor.value;
 		}
 	}

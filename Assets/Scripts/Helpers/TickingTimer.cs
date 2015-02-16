@@ -27,7 +27,7 @@ public class TickingTimer
 		toInitialized();
 	}
 
-	void enterState(State state, Action stateEnder)
+	void enterState(State state, Action stateEnder = null)
 	{
 		if (_stateEnder != null)
 		{
@@ -37,6 +37,34 @@ public class TickingTimer
 		_state = state;
 		_stateEnder = stateEnder;
 	}
+
+
+    /*
+    * STATE METHODS
+    */
+    void toInitialized()
+    {
+        enterState(State.Initialized);
+        toTicking();
+    }
+
+    void toTicking()
+    {
+        enterState(State.Ticking, endTicking);
+        _timerActive = true;
+        DelayedCallback(runTimer, _tickDuration);
+    }
+
+    void endTicking()
+    {
+        _timerActive = false;
+    }
+
+    void toDisposed()
+    {
+        enterState(State.Disposed);
+    }
+
 
 	/*
 	 * EVENTS
@@ -58,46 +86,16 @@ public class TickingTimer
 		}
 	}
 
+    public void setDuration(float duration)
+    {
+        _tickDuration = duration;
+    }
+
 	public void destroy()
 	{
 		toDisposed();
 	}
 
-	/*
-	 * STATE METHODS
-	*/
-	void toInitialized()
-	{
-		enterState(State.Initialized, endInitialized);
-		toTicking();
-	}
-
-	void endInitialized()
-	{
-
-	}
-
-	void toTicking()
-	{
-		enterState(State.Ticking, endTicking);
-		_timerActive = true;
-		DelayedCallback(runTimer, _tickDuration);
-	}
-
-	void endTicking()
-	{
-		_timerActive = false;
-	}
-
-	void toDisposed()
-	{
-		enterState(State.Disposed, endDisposed);
-	}
-
-	void endDisposed()
-	{
-
-	}
 
 	/*
 	 * HELPER METHODS
@@ -113,10 +111,4 @@ public class TickingTimer
 		yield return new WaitForSeconds(delay);
 		callback(); 
 	}
-
-	public void setDuration(float duration)
-	{
-		_tickDuration = duration;
-	}
-
 }
