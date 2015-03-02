@@ -5,6 +5,8 @@ Project("{DB6E4184-C91C-798F-1592-EC950626218F}") = "RememberTheCorrectColor", "
 EndProject
 Project("{DB6E4184-C91C-798F-1592-EC950626218F}") = "RememberTheCorrectColor", "Assembly-CSharp-vs.csproj", "{2D6B587D-4207-71BF-84F1-5BD1CFF3D646}"
 EndProject
+Project("{DB6E4184-C91C-798F-1592-EC950626218F}") = "RememberTheCorrectColor", "Assembly-CSharp-Editor-vs.csproj", "{4BF08652-A432-C10A-152E-75C7702D2092}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -19,11 +21,15 @@ Global
 		{2D6B587D-4207-71BF-84F1-5BD1CFF3D646}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2D6B587D-4207-71BF-84F1-5BD1CFF3D646}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{2D6B587D-4207-71BF-84F1-5BD1CFF3D646}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4BF08652-A432-C10A-152E-75C7702D2092}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4BF08652-A432-C10A-152E-75C7702D2092}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4BF08652-A432-C10A-152E-75C7702D2092}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4BF08652-A432-C10A-152E-75C7702D2092}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
-																																																																	GlobalSection(MonoDevelopProperties) = preSolution
+																																																																										GlobalSection(MonoDevelopProperties) = preSolution
 		StartupItem = Assembly-CSharp.csproj
 		Policies = $0
 		$0.TextStylePolicy = $1

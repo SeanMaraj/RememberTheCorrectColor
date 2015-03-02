@@ -4,12 +4,13 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine.UI;
 using SimpleJSON;
+using GooglePlayGames;
+using UnityEngine.SocialPlatforms;
 
 public class StartGame : MonoBehaviour 
 {
 	enum State { Initialized, Menu, Gameplay, Gameover, Disposed };
     enum Difficulty { Easy = 12, Normal = 10, Pro = 7 }; // Divide value by 10 to get initial duration
-	State _currentState;
     Difficulty _difficulty = Difficulty.Normal;
 	Action _stateEnder;
 
@@ -41,7 +42,6 @@ public class StartGame : MonoBehaviour
 			_stateEnder();
 		}
 
-		_currentState = state;
 		_stateEnder = stateEnder;
 	}
 
@@ -52,6 +52,18 @@ public class StartGame : MonoBehaviour
     void toInitialized()
     {
         enterState(State.Initialized, null);
+        PlayGamesPlatform.Activate();
+        Social.localUser.Authenticate((bool success) =>
+        {
+            if (success)
+            {
+                Debug.Log("You have successfully logged in.");
+            }
+            else
+            {
+                Debug.Log("Login has failed.");
+            }
+        });
         _menuLayout = transform.Find("Menu").gameObject;
         _gameplayLayout = transform.Find("Game").gameObject;
         _gameoverLayout = transform.Find("Gameover").gameObject;
@@ -77,6 +89,11 @@ public class StartGame : MonoBehaviour
         enterState(State.Gameplay, endGameplay);
         _score = 0;
         _firstColor = true;
+        _currentColor = null;
+        _prevColor = null;
+        _prevTappedColor = null;
+        _extraColors.Clear();
+
         _gameplayLayout.GetComponent<CanvasGroup>().alpha = 1;
         Text scoreText = transform.Find("Score").GetComponent<Text>();
         scoreText.text = "Score: 0";
@@ -101,6 +118,7 @@ public class StartGame : MonoBehaviour
         if (_score > currentHighScore)
         {
             PlayerPrefs.SetInt("highScore" + _difficulty.ToString(), _score);
+            postToGoogleLeaderboard();
         }
     }
     void endGameover()
@@ -123,6 +141,7 @@ public class StartGame : MonoBehaviour
 
         if (_tapped || _prevColor == null || !(_prevColor.isMain))
 		{
+            if (_firstColor) { _firstColor = false; }
 			chooseColor();
 		}else
 		{
@@ -150,23 +169,38 @@ public class StartGame : MonoBehaviour
 
 	public void tapColor(GameObject colorButton)
 	{
-		if (colorButton.tag.Equals(_prevColor.name)) // If tapped color is correct
-		{
-			if (!_tapped) // Ensures only first tap of color counts
-			{
-				_score++;
-				transform.Find("Score").GetComponent<Text>().text = "Score: " + _score;
-				colorButton.transform.Find("check").gameObject.SetActive(true);
-				colorButton.transform.Find("check").gameObject.GetComponent<Image>().CrossFadeAlpha(0, 0.25f, false);
-				_prevTappedColor = colorButton;
-				setDifficulty();
-			}
-            _tapped = true;
-		}else
-		{
-			toGameOver();
-		}
+        if (!_firstColor)
+        {
+            if (colorButton.tag.Equals(_prevColor.name)) // If tapped color is correct
+            {
+                if (!_tapped) // Ensures only first tap of color counts
+                {
+                    _score++;
+                    transform.Find("Score").GetComponent<Text>().text = "Score: " + _score;
+                    colorButton.transform.Find("check").gameObject.SetActive(true);
+                    colorButton.transform.Find("check").gameObject.GetComponent<Image>().CrossFadeAlpha(0, 0.25f, false);
+                    _prevTappedColor = colorButton;
+                    setDifficulty();
+                    checkAchievement();
+                }
+                _tapped = true;
+            }
+            else
+            {
+                toGameOver();
+            }
+        }
 	}
+
+    public void tapAchievements()
+    {
+        Social.ShowAchievementsUI();
+    }
+
+    public void tapLeaderboards()
+    {
+        Social.ShowLeaderboardUI();
+    }
 
     public void tapPlay()
     {
@@ -180,10 +214,6 @@ public class StartGame : MonoBehaviour
 
     public void tapRestart()
     {
-        _currentColor = null;
-        _prevColor = null;
-        _prevTappedColor = null;
-        _extraColors.Clear();
         toGameplay();
     }
 
@@ -263,9 +293,81 @@ public class StartGame : MonoBehaviour
 			chooseColor(true); 
 		}else
 		{
-            if (_firstColor) { _firstColor = false; }
 			_tapped = false; // Reset flag for new color to be tapped
 			transform.Find ("Game").Find("swapper").Find("background").gameObject.GetComponent<Image>().color = _currentColor.value;
 		}
 	}
+
+    void checkAchievement()
+    {
+        if (_difficulty.ToString() == "Easy")
+        {
+            if (_score == 50)
+            {
+                Social.ReportProgress("CgkIr_Hh_8oTEAIQAg", 100.0f, (bool success) =>
+                {
+                    if (success) { Debug.Log("Not Bad"); }
+                });
+            }
+            else if (_score == 100)
+            {
+                Social.ReportProgress("CgkIr_Hh_8oTEAIQAw", 100.0f, (bool success) =>
+                {
+                    if (success) { Debug.Log("Pretty Good!"); }
+                });
+            }
+        }
+        else if (_difficulty.ToString()== "Normal")
+        {
+            if (_score == 100)
+            {
+                Social.ReportProgress("CgkIr_Hh_8oTEAIQBA", 100.0f, (bool success) =>
+                {
+                    if (success) { Debug.Log("Wow!!"); }
+                });
+            }
+        }
+        else if (_difficulty.ToString() == "Pro")
+        {
+            if (_score == 100)
+            {
+                Social.ReportProgress("CgkIr_Hh_8oTEAIQBQ", 100.0f, (bool success) =>
+                {
+                    if (success) { Debug.Log("No waaay!!!"); }
+                });
+            }
+            else if (_score == 101) 
+            {
+                Social.ReportProgress("CgkIr_Hh_8oTEAIQBg", 100.0f, (bool success) =>
+                {
+                    if (success) { Debug.Log("Are you even human?..."); }
+                });
+            }
+        }
+    }
+
+    void postToGoogleLeaderboard()
+    {
+        if (_difficulty.ToString() == "Easy")
+        {
+            Social.ReportScore(_score, "CgkIr_Hh_8oTEAIQBw", (bool success) =>
+            {
+                if (success) { Debug.Log("Posted to Easy Leaderboard!"); }
+            });
+        }
+        else if (_difficulty.ToString() == "Normal")
+        {
+            Social.ReportScore(_score, "CgkIr_Hh_8oTEAIQCA", (bool success) =>
+            {
+                if (success) { Debug.Log("Posted to Normal Leaderboard!"); }
+            });
+        }
+        else if (_difficulty.ToString() == "Pro")
+        {
+            Social.ReportScore(_score, "CgkIr_Hh_8oTEAIQCQ", (bool success) =>
+            {
+                if (success) { Debug.Log("Posted to Pro Leaderboard!"); }
+            });
+        }
+    }
 }
