@@ -9,7 +9,8 @@ using UnityEngine.SocialPlatforms;
 
 public class StartGame : MonoBehaviour 
 {
-	enum State { Initialized, Menu, Gameplay, Gameover, Disposed };
+	enum State { Initialized, Menu, Gameplay, Gameover, Starting };
+    State _currentState = State.Starting;
     enum Difficulty { Easy = 12, Normal = 10, Pro = 7 }; // Divide value by 10 to get initial duration
     Difficulty _difficulty = Difficulty.Normal;
 	Action _stateEnder;
@@ -35,6 +36,25 @@ public class StartGame : MonoBehaviour
 		toInitialized();
 	}
 
+    void Update()
+    {
+        if (Input.GetKeyDown(KeyCode.Escape))
+        {
+            if (_currentState == State.Menu)
+            {
+                Application.Quit();
+            }
+            else if (_currentState == State.Gameplay)
+            {
+                toGameOver();
+            }
+            else if (_currentState == State.Gameover)
+            {
+                toMenu();
+            }
+        }
+    }
+
 	void enterState(State state, Action stateEnder)
 	{
 		if (_stateEnder != null)
@@ -42,6 +62,7 @@ public class StartGame : MonoBehaviour
 			_stateEnder();
 		}
 
+        _currentState = state;
 		_stateEnder = stateEnder;
 	}
 
@@ -114,11 +135,20 @@ public class StartGame : MonoBehaviour
         _gameplayLayout.GetComponent<CanvasGroup>().alpha = 0.3f;
         transform.Find("Score").GetComponent<Text>().color = Color.white;
 
+        // Update high score
         int currentHighScore = PlayerPrefs.GetInt("highScore" + _difficulty.ToString());
         if (_score > currentHighScore)
         {
             PlayerPrefs.SetInt("highScore" + _difficulty.ToString(), _score);
             postToGoogleLeaderboard();
+        }
+
+        // Reset checkmkarks
+        foreach (GameColor color in _mainColors)
+        {
+            GameObject checkMark = _gameplayLayout.transform.Find("button" + color.name).Find("check").gameObject;
+            checkMark.GetComponent<Image>().CrossFadeAlpha(1, 0, false);
+			checkMark.SetActive(false);
         }
     }
     void endGameover()
@@ -221,7 +251,6 @@ public class StartGame : MonoBehaviour
 	/* 
 	 * HELPERS
 	*/
-    
 	void addMainColors()
 	{
 		_mainColors.Add(new GameColor(Color.green, "Green", 0, true));
