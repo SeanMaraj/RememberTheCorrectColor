@@ -9,8 +9,9 @@ using UnityEngine.SocialPlatforms;
 
 public class StartGame : MonoBehaviour 
 {
-	enum State { Initialized, Menu, Gameplay, Gameover, Starting };
+	enum State { Initialized, Menu, ClassicMode, SurvivalMode, Gameover, Starting };
     State _currentState = State.Starting;
+    State _prevState = State.Starting;
     enum Difficulty { Easy = 12, Normal = 10, Pro = 7 }; // Divide value by 10 to get initial duration
     Difficulty _difficulty = Difficulty.Normal;
 	Action _stateEnder;
@@ -30,6 +31,7 @@ public class StartGame : MonoBehaviour
 	int _score = 0;
 	bool _tapped; // Flag for when the player taps the current color
 	bool _firstColor; // Flag to check if the current color is the first color
+    int _remainingColors = 0; //Used in survival mode
 	
 	void Start ()
 	{
@@ -44,7 +46,7 @@ public class StartGame : MonoBehaviour
             {
                 Application.Quit();
             }
-            else if (_currentState == State.Gameplay)
+            else if (_currentState == State.ClassicMode || _currentState == State.SurvivalMode)
             {
                 toGameOver();
             }
@@ -62,6 +64,7 @@ public class StartGame : MonoBehaviour
 			_stateEnder();
 		}
 
+        _prevState = _currentState;
         _currentState = state;
 		_stateEnder = stateEnder;
 	}
@@ -105,9 +108,9 @@ public class StartGame : MonoBehaviour
         _menuLayout.SetActive(false);
     }
 
-    void toGameplay()
+    void toClassicMode()
     {
-        enterState(State.Gameplay, endGameplay);
+        enterState(State.ClassicMode, endClassicMode);
         _score = 0;
         _firstColor = true;
         _currentColor = null;
@@ -121,12 +124,65 @@ public class StartGame : MonoBehaviour
         scoreText.color = Color.black;
         _timer = new TickingTimer(_duration, 0, timerTick, this);
         chooseColor();
-        setDifficulty();
+        setClassicModeDifficulty();
     }
-    void endGameplay()
+    void endClassicMode()
     {
         _timer.destroy();
     }
+
+
+
+
+
+    void toSurvivalMode()
+    {
+        enterState(State.SurvivalMode, endSurvivalMode);
+        _score = 0;
+        _firstColor = true;
+        _currentColor = null;
+        _prevColor = null;
+        _prevTappedColor = null;
+        _extraColors.Clear();
+
+        _gameplayLayout.GetComponent<CanvasGroup>().alpha = 1;
+        Text scoreText = transform.Find("Score").GetComponent<Text>();
+        scoreText.text = "Score: 0";
+        scoreText.color = Color.black;
+
+
+        //Set Difficulty
+        if (_difficulty == Difficulty.Easy)
+        {
+            _duration = 10.0f;
+            _remainingColors = 15;
+        }
+        else if (_difficulty == Difficulty.Normal)
+        {
+            _duration = 15.0f;
+            _remainingColors = 25;
+        }
+        else if (_difficulty == Difficulty.Pro)
+        {
+            _duration = 20.0f;
+            _remainingColors = 40;
+        }
+
+        
+        chooseColor(false, true);
+        new TickingTimer(1.0f, 1, () => { chooseColor(false, true); _firstColor = false; }, this);
+        _timer = new TickingTimer(_duration, 1, toGameOver, this);
+        Debug.Log("here");
+
+    }
+    void endSurvivalMode()
+    {
+        Debug.Log("survival mode ended");
+    }
+
+
+
+
 
     void toGameOver()
     {
@@ -199,24 +255,49 @@ public class StartGame : MonoBehaviour
 
 	public void tapColor(GameObject colorButton)
 	{
+        Debug.Log("first color: " + _firstColor);
         if (!_firstColor)
         {
             if (colorButton.tag.Equals(_prevColor.name)) // If tapped color is correct
             {
                 if (!_tapped) // Ensures only first tap of color counts
                 {
-                    _score++;
-                    transform.Find("Score").GetComponent<Text>().text = "Score: " + _score;
-                    colorButton.transform.Find("check").gameObject.SetActive(true);
-                    colorButton.transform.Find("check").gameObject.GetComponent<Image>().CrossFadeAlpha(0, 0.25f, false);
-                    _prevTappedColor = colorButton;
-                    setDifficulty();
-                    checkAchievement();
+                    Debug.Log(_currentState.ToString());
+
+                    if (_currentState == State.ClassicMode)
+                    {
+                        _score++;
+                        transform.Find("Score").GetComponent<Text>().text = "Score: " + _score;
+                        colorButton.transform.Find("check").gameObject.SetActive(true);
+                        colorButton.transform.Find("check").gameObject.GetComponent<Image>().CrossFadeAlpha(0, 0.25f, false);
+                        _prevTappedColor = colorButton;
+                        setClassicModeDifficulty();
+                        checkAchievement();
+                    }
+                    else if (_currentState == State.SurvivalMode) //TODO
+                    {
+                        _score++;
+                        colorButton.transform.Find("check").gameObject.SetActive(true);
+                        colorButton.transform.Find("check").gameObject.GetComponent<Image>().CrossFadeAlpha(0, 0.25f, false);
+                        _remainingColors--;
+                        if (_remainingColors <= 0)
+                        {
+                            Debug.Log("good job!");
+                            toGameOver();
+                        }
+                        else
+                        {
+                            chooseColor(false, true);
+                        }
+                        Debug.Log("correct");
+                        
+                    }
                 }
                 _tapped = true;
             }
             else
             {
+                Debug.Log("wrong");
                 toGameOver();
             }
         }
@@ -232,9 +313,14 @@ public class StartGame : MonoBehaviour
         Social.ShowLeaderboardUI();
     }
 
-    public void tapPlay()
+    public void tapClassicModeButton()
     {
-        toGameplay();
+        toClassicMode();
+    }
+
+    public void tapSurvivalModeButton()
+    {
+        toSurvivalMode();
     }
 
     public void tapMenu()
@@ -244,7 +330,14 @@ public class StartGame : MonoBehaviour
 
     public void tapRestart()
     {
-        toGameplay();
+        if (_prevState == State.ClassicMode)
+        {
+            toClassicMode();
+        }
+        else if (_prevState == State.SurvivalMode)
+        {
+            toSurvivalMode();
+        }        
     }
 
 
@@ -259,8 +352,8 @@ public class StartGame : MonoBehaviour
 		_mainColors.Add(new GameColor(Color.yellow, "Yellow", 0, true));
 	}
 
-	// Sets the duration of how long a color stays on the screen. Duration decreases as the player's score increases.
-	void setDifficulty()
+	// Sets the duration for Classic Mode of how long a color stays on the screen. Duration decreases as the player's score increases.
+	void setClassicModeDifficulty()
 	{
 		switch(_score)
 		{
@@ -302,13 +395,19 @@ public class StartGame : MonoBehaviour
 	}
 
 	// Chooses the next color to display
-	void chooseColor(bool rechoose = false)
+	void chooseColor(bool rechoose = false, bool survivalMode = false)
 	{
         _prevColor = _currentColor; // Store the previous color to check if player is correct	
 
         // % chance of choosing a main color
 		System.Random rnd  = new System.Random();
-		int die = rnd.Next(100);						
+		int die = rnd.Next(100); // TODO: change to proper probabiblity method
+
+        if (survivalMode)
+        {
+            die = 0;
+        }
+		
 		if (die < 90 || _extraColors.Count == 0)
 		{
 			_currentColor = _mainColors [rnd.Next (0, _mainColors.Count)];
