@@ -32,6 +32,7 @@ public class StartGame : MonoBehaviour
 	bool _tapped; // Flag for when the player taps the current color
 	bool _firstColor; // Flag to check if the current color is the first color
     int _remainingColors = 0; //Used in survival mode
+    float _survivalTimeLeft = 0;
 	
 	void Start ()
 	{
@@ -101,7 +102,8 @@ public class StartGame : MonoBehaviour
         enterState(State.Menu, endMenu);
         _menuLayout.SetActive(true);
         _gameplayLayout.GetComponent<CanvasGroup>().alpha = 0.3f;
-        transform.Find("Score").GetComponent<Text>().text = "High Score: " + PlayerPrefs.GetInt("highScore" + _difficulty.ToString());
+        _menuLayout.transform.Find("HighScore").GetComponent<Text>().text = "High Score: " + PlayerPrefs.GetInt("highScore" + _difficulty.ToString());
+        _menuLayout.transform.Find("TimeLeft").GetComponent<Text>().text = "Time Left: " + PlayerPrefs.GetFloat("timeLeft" + _difficulty.ToString()) + "s";
     }
     void endMenu()
     {
@@ -120,8 +122,8 @@ public class StartGame : MonoBehaviour
 
         _gameplayLayout.GetComponent<CanvasGroup>().alpha = 1;
         Text scoreText = transform.Find("Score").GetComponent<Text>();
+        scoreText.gameObject.SetActive(true);
         scoreText.text = "Score: 0";
-        scoreText.color = Color.black;
         _timer = new TickingTimer(_duration, 0, timerTick, this);
         chooseColor();
         setClassicModeDifficulty();
@@ -129,11 +131,8 @@ public class StartGame : MonoBehaviour
     void endClassicMode()
     {
         _timer.destroy();
+        
     }
-
-
-
-
 
     void toSurvivalMode()
     {
@@ -154,35 +153,35 @@ public class StartGame : MonoBehaviour
         //Set Difficulty
         if (_difficulty == Difficulty.Easy)
         {
-            _duration = 10.0f;
-            _remainingColors = 15;
+            _survivalTimeLeft = 10f;
+            _remainingColors = 10;
         }
         else if (_difficulty == Difficulty.Normal)
         {
-            _duration = 15.0f;
-            _remainingColors = 25;
+            _survivalTimeLeft = 15f;
+            _remainingColors = 20;
         }
         else if (_difficulty == Difficulty.Pro)
         {
-            _duration = 20.0f;
+            _survivalTimeLeft = 20f;
             _remainingColors = 40;
         }
 
+        Text timeLeft = transform.Find("TimeLeft").GetComponent<Text>();
+        timeLeft.gameObject.SetActive(true);
+        timeLeft.text = _survivalTimeLeft + "s";
+        Text remaining = transform.Find("Remaining").GetComponent<Text>();
+        remaining.gameObject.SetActive(true);
+        remaining.text = "Remaining: " + _remainingColors;
         
         chooseColor(false, true);
-        new TickingTimer(1.0f, 1, () => { chooseColor(false, true); _firstColor = false; }, this);
-        _timer = new TickingTimer(_duration, 1, toGameOver, this);
-        Debug.Log("here");
-
+        new TickingTimer(1.0f, 1, startSurvivalMode, this); // wait 1 second for first color to change
     }
     void endSurvivalMode()
     {
-        Debug.Log("survival mode ended");
+        _timer.destroy();
+        
     }
-
-
-
-
 
     void toGameOver()
     {
@@ -190,13 +189,26 @@ public class StartGame : MonoBehaviour
         _gameoverLayout.SetActive(true);
         _gameplayLayout.GetComponent<CanvasGroup>().alpha = 0.3f;
         transform.Find("Score").GetComponent<Text>().color = Color.white;
-
+        
         // Update high score
-        int currentHighScore = PlayerPrefs.GetInt("highScore" + _difficulty.ToString());
-        if (_score > currentHighScore)
+        if (_prevState== State.ClassicMode)
         {
-            PlayerPrefs.SetInt("highScore" + _difficulty.ToString(), _score);
-            postToGoogleLeaderboard();
+            int currentHighScore = PlayerPrefs.GetInt("highScore" + _difficulty.ToString());
+            if (_score > currentHighScore)
+            {
+                PlayerPrefs.SetInt("highScore" + _difficulty.ToString(), _score);
+                postToGoogleLeaderboard();
+            }
+        }
+        else if (_prevState == State.SurvivalMode && _remainingColors == 0)
+        {
+            float currentBestTimeLeft = PlayerPrefs.GetFloat("timeLeft" + _difficulty.ToString());
+            
+            if (_survivalTimeLeft > currentBestTimeLeft)
+            {
+                PlayerPrefs.SetFloat("timeLeft" + _difficulty.ToString(), Mathf.Round(_survivalTimeLeft*100)/100);
+                postToGoogleLeaderboard();
+            }
         }
 
         // Reset checkmkarks
@@ -209,6 +221,9 @@ public class StartGame : MonoBehaviour
     }
     void endGameover()
     {
+        transform.Find("TimeLeft").GetComponent<Text>().gameObject.SetActive(false);
+        transform.Find("Remaining").GetComponent<Text>().gameObject.SetActive(false);
+        transform.Find("Score").GetComponent<Text>().gameObject.SetActive(false);
         _gameoverLayout.SetActive(false);
     }
 
@@ -235,6 +250,18 @@ public class StartGame : MonoBehaviour
 		}
 	}
 
+    void survivalTimerTick()
+    {
+        Text timeLeft = transform.Find("TimeLeft").GetComponent<Text>();
+        _survivalTimeLeft = _survivalTimeLeft - 0.01f;
+        timeLeft.text = _survivalTimeLeft.ToString("0.00") + "s";
+        
+        if (_survivalTimeLeft <= 0)
+        {
+            toGameOver();
+        }
+    }
+
     public void tapDifficultyButton(GameObject difficulty)
     {
         // Reset color of previously selected difficulty button
@@ -255,15 +282,13 @@ public class StartGame : MonoBehaviour
 
 	public void tapColor(GameObject colorButton)
 	{
-        Debug.Log("first color: " + _firstColor);
         if (!_firstColor)
         {
             if (colorButton.tag.Equals(_prevColor.name)) // If tapped color is correct
             {
-                if (!_tapped) // Ensures only first tap of color counts
+                if (!_tapped || _currentState == State.SurvivalMode) // Ensures only first tap of color counts
                 {
-                    Debug.Log(_currentState.ToString());
-
+           
                     if (_currentState == State.ClassicMode)
                     {
                         _score++;
@@ -276,10 +301,20 @@ public class StartGame : MonoBehaviour
                     }
                     else if (_currentState == State.SurvivalMode) //TODO
                     {
-                        _score++;
+                        Debug.Log("correct");
+                        Text remaining = transform.Find("Remaining").GetComponent<Text>();
+                        remaining.text = "Remaining: " + --_remainingColors;
+
+                        // Reset checkmark and fade it away
+                        if (_prevTappedColor != null)
+                        {
+                            _prevTappedColor.transform.Find("check").gameObject.GetComponent<Image>().CrossFadeAlpha(1, 0, false);
+                            _prevTappedColor.transform.Find("check").gameObject.SetActive(false);
+                        }
                         colorButton.transform.Find("check").gameObject.SetActive(true);
                         colorButton.transform.Find("check").gameObject.GetComponent<Image>().CrossFadeAlpha(0, 0.25f, false);
-                        _remainingColors--;
+                        _prevTappedColor = colorButton;
+
                         if (_remainingColors <= 0)
                         {
                             Debug.Log("good job!");
@@ -289,8 +324,6 @@ public class StartGame : MonoBehaviour
                         {
                             chooseColor(false, true);
                         }
-                        Debug.Log("correct");
-                        
                     }
                 }
                 _tapped = true;
@@ -423,8 +456,16 @@ public class StartGame : MonoBehaviour
 		{
 			_tapped = false; // Reset flag for new color to be tapped
 			transform.Find ("Game").Find("swapper").Find("background").gameObject.GetComponent<Image>().color = _currentColor.value;
+            Debug.Log("Chosen: " + _currentColor.name);
 		}
 	}
+
+    void startSurvivalMode()
+    {
+        _firstColor = false;
+        chooseColor(false, true);
+        _timer = new TickingTimer(0.01f, 0, survivalTimerTick, this);
+    }
 
     void checkAchievement()
     {
@@ -476,26 +517,33 @@ public class StartGame : MonoBehaviour
 
     void postToGoogleLeaderboard()
     {
-        if (_difficulty.ToString() == "Easy")
+        if (_currentState == State.ClassicMode)
         {
-            Social.ReportScore(_score, "CgkIr_Hh_8oTEAIQBw", (bool success) =>
+            if (_difficulty.ToString() == "Easy")
             {
-                if (success) { Debug.Log("Posted to Easy Leaderboard!"); }
-            });
+                Social.ReportScore(_score, "CgkIr_Hh_8oTEAIQBw", (bool success) =>
+                {
+                    if (success) { Debug.Log("Posted to Easy Leaderboard!"); }
+                });
+            }
+            else if (_difficulty.ToString() == "Normal")
+            {
+                Social.ReportScore(_score, "CgkIr_Hh_8oTEAIQCA", (bool success) =>
+                {
+                    if (success) { Debug.Log("Posted to Normal Leaderboard!"); }
+                });
+            }
+            else if (_difficulty.ToString() == "Pro")
+            {
+                Social.ReportScore(_score, "CgkIr_Hh_8oTEAIQCQ", (bool success) =>
+                {
+                    if (success) { Debug.Log("Posted to Pro Leaderboard!"); }
+                });
+            }
         }
-        else if (_difficulty.ToString() == "Normal")
+        else if (_currentState == State.SurvivalMode)
         {
-            Social.ReportScore(_score, "CgkIr_Hh_8oTEAIQCA", (bool success) =>
-            {
-                if (success) { Debug.Log("Posted to Normal Leaderboard!"); }
-            });
-        }
-        else if (_difficulty.ToString() == "Pro")
-        {
-            Social.ReportScore(_score, "CgkIr_Hh_8oTEAIQCQ", (bool success) =>
-            {
-                if (success) { Debug.Log("Posted to Pro Leaderboard!"); }
-            });
+
         }
     }
 }
